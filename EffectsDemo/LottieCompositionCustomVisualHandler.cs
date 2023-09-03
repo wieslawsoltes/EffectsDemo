@@ -111,19 +111,23 @@ internal class LottieCompositionCustomVisualHandler : CompositionCustomVisualHan
                   uniform float3 iImageResolution; // iImage1 resolution (pixels)
                   uniform shader iImage1;          // An input image.
                   
-                  // Source: @XorDev https://twitter.com/XorDev/status/1475524322785640455
-                  vec4 main(vec2 FC) {
-                    vec4 o = vec4(0);
-                    vec2 p = vec2(0), c=p, u=FC.xy*2.-iResolution.xy;
-                    float a;
-                    for (float i=0; i<4e2; i++) {
-                      a = i/2e2-1.;
-                      p = cos(i*2.4+iTime+vec2(0,11))*sqrt(1.-a*a);
-                      c = u/iResolution.y+vec2(p.x,a)/(p.y+2.);
-                      o += (cos(i+vec4(0,2,4,0))+1.)/dot(c,c)*(1.-p.y)/3e4;
-                    }
-                    return o;
+                  // Source: @notargs https://twitter.com/notargs/status/1250468645030858753
+                  float f(vec3 p) {
+                      p.z -= iTime * 10.;
+                      float a = p.z * .1;
+                      p.xy *= mat2(cos(a), sin(a), -sin(a), cos(a));
+                      return .1 - length(cos(p.xy) + sin(p.yz));
                   }
+                  
+                  half4 main(vec2 fragcoord) { 
+                      vec3 d = .5 - fragcoord.xy1 / iResolution.y;
+                      vec3 p=vec3(0);
+                      for (int i = 0; i < 32; i++) {
+                        p += f(p) * d;
+                      }
+                      return ((sin(p) + vec3(2, 5, 12)) / length(p)).xyz1;
+                  }
+                  
                   """;
 
         _time = 0f;

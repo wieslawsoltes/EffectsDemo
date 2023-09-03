@@ -105,109 +105,71 @@ internal class LottieCompositionCustomVisualHandler : CompositionCustomVisualHan
         using var imageShader = image.ToShader();
 
         var src = """
-                  // Created by inigo quilez - iq/2013
-                  // License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
+                  uniform float Time;
+                  uniform float3 Resolution;
                   
-                  // See here for a tutorial on how to make this:
-                  //
-                  // http://www.iquilezles.org/www/articles/warp/warp.htm
-                  
-                  //====================================================================
-                  
-                  /* 
-                  
-                  SKSL PORT by kekekeks
-                  
-                  SKSL doesn't seem to support out/inout variables for anything but main
-                  So I've made `func` to return float4 and encoded the original returnn value as the first element of the vector
-                  
-                  */
-                  
-                  uniform float iTime;
-                  uniform float3 iResolution;
-                  
-                  const float2x2 m = float2x2( 0.80,  0.60, -0.60,  0.80 );
-                  
-                  float noise( in float2 p )
+                  float noise(vec3 p) //Thx to Las^Mercury
                   {
-                      return sin(p.x)*sin(p.y);
+                      vec3 i = floor(p);
+                      vec4 a = dot(i, vec3(1., 57., 21.)) + vec4(0., 57., 21., 78.);
+                      vec3 f = cos((p-i)*acos(-1.))*(-.5)+.5;
+                      a = mix(sin(cos(a)*a),sin(cos(1.+a)*(1.+a)), f.x);
+                      a.xy = mix(a.xz, a.yw, f.y);
+                      return mix(a.x, a.y, f.z);
                   }
                   
-                  float fbm4( float2 p )
+                  float sphere(vec3 p, vec4 spr)
                   {
-                      float f = 0.0;
-                      f += 0.5000*noise( p ); p = m*p*2.02;
-                      f += 0.2500*noise( p ); p = m*p*2.03;
-                      f += 0.1250*noise( p ); p = m*p*2.01;
-                      f += 0.0625*noise( p );
-                      return f/0.9375;
+                      return length(spr.xyz-p) - spr.w;
                   }
                   
-                  float fbm6( float2 p )
+                  float flame(vec3 p)
                   {
-                      float f = 0.0;
-                      f += 0.500000*(0.5+0.5*noise( p )); p = m*p*2.02;
-                      f += 0.250000*(0.5+0.5*noise( p )); p = m*p*2.03;
-                      f += 0.125000*(0.5+0.5*noise( p )); p = m*p*2.01;
-                      f += 0.062500*(0.5+0.5*noise( p )); p = m*p*2.04;
-                      f += 0.031250*(0.5+0.5*noise( p )); p = m*p*2.01;
-                      f += 0.015625*(0.5+0.5*noise( p ));
-                      return f/0.96875;
+                      float d = sphere(p*vec3(1.,.3,1.), vec4(.0,-1.,.0,1.));
+                      return d + (noise(p+vec3(.0,Time*0.1,.0)) + noise(p*3.)*.5)*.25*(p.y) ;
                   }
                   
-                  float2 fbm4_2( float2 p )
+                  float scene(vec3 p)
                   {
-                      return float2(fbm4(p), fbm4(p+float2(7.8)));
+                      return min(100.-length(p) , abs(flame(p)) );
                   }
                   
-                  float2 fbm6_2( float2 p )
+                  vec4 raymarch(vec3 org, vec3 dir)
                   {
-                      return float2(fbm6(p+float2(16.8)), fbm6(p+float2(11.5)));
+                      float d = 0.0, glow = 0.0, eps = 0.02;
+                      vec3  p = org;
+                      bool glowed = false;
+                      
+                      for(int i=0; i<64; i++)
+                      {
+                          d = scene(p) + eps;
+                          p += d * dir;
+                          if( d>eps )
+                          {
+                              if(flame(p) < .0)
+                                  glowed=true;
+                              if(glowed)
+                                  glow = float(i)/64.;
+                          }
+                      }
+                      return vec4(p,glow);
                   }
                   
-                  //====================================================================
-                  
-                  float4 func( float2 q)
+                  half4 main(vec2 fragCoord)
                   {
-                      q += 0.03*sin( float2(0.27,0.23)*iTime + length(q)*float2(4.1,4.3));
-                      float2 o = fbm4_2( 0.9*q );
-                      o += 0.04*sin( float2(0.12,0.14)*iTime + length(o));
-                      float2 n = fbm6_2( 3.0*o );
-                      float f = 0.5 + 0.5*fbm4( 1.8*q + 6.0*n );
-                      float rv = mix( f, f*f*f*3.5, f*abs(n.x) );
-                      return float4(rv, o.y, n.x, n.y );
-                  }
+                      vec2 uv = 2.0 * fragCoord.xy / Resolution.xy;
+                      uv.x *= Resolution.x/Resolution.y;
+                      
+                      vec3 org = vec3(0., -4.5, 4.);
+                      vec3 dir = normalize(vec3(uv.x*1.6, -uv.y, -1.5));
+                      
+                      vec4 p = raymarch(org, dir);
+                      float glow = p.w;
+                      
+                      half4 col = mix(half4(1.,.5,.1,1.), half4(0.1,.5,1.,1.), p.y*.02+.4);
+                      
+                      return half4(mix(half4(0.), col, pow(glow*2.,4.)));
                   
-                  
-                  
-                  half4 main(float2 fragCoord) 
-                  {
-                      //float2 p = sk_TransformedCoords2D[0]
-                      float2 p = (2.0*fragCoord-iResolution.xy)/iResolution.y;
-                      float e = 2.0/iResolution.y;
-                  
-                      float4 on = func(p);
-                      float f = on.x;
-                      float3 col = float3(0.0);
-                      col = mix( float3(0.2,0.1,0.4), float3(0.3,0.05,0.05), f );
-                      col = mix( col, float3(0.9,0.9,0.9), dot(on.zw,on.zw) );
-                      col = mix( col, float3(0.4,0.3,0.3), 0.2 + 0.5*on.y*on.y );
-                      col = mix( col, float3(0.0,0.2,0.4), 0.5*smoothstep(1.2,1.3,abs(on.z)+abs(on.w)) );
-                      col = clamp( col*f*2.0, 0.0, 1.0 );
-                  
-                  
-                      float3 nor = normalize( float3( func(p+float2(e,0.0)).x-f,
-                      2.0*e,
-                      func(p+float2(0.0,e)).x-f ));
-                  
-                      float3 lig = normalize( float3( 0.9, 0.2, -0.4 ) );
-                      float dif = clamp( 0.3+0.7*dot( nor, lig ), 0.0, 1.0 );
-                      float3 lin = float3(0.70,0.90,0.95)*(nor.y*0.5+0.5) + float3(0.15,0.10,0.05)*dif;
-                      col *= 1.2*lin;
-                      col = 1.0 - col;
-                      col = 1.1*col*col;
-                  
-                      return half4(float4( col, 1.));
                   }
                   """;
 
@@ -216,8 +178,8 @@ internal class LottieCompositionCustomVisualHandler : CompositionCustomVisualHan
         _effect = SKRuntimeEffect.CreateShader(src, out var errorText);
         _uniforms = new SKRuntimeEffectUniforms(_effect)
         {
-            ["iResolution"] = new [] { 512f, 512f, 0f },
-            ["iTime"] = _time,
+            ["Resolution"] = new [] { 512f, 512f, 0f },
+            ["Time"] = _time,
             //["iMouse"] = new [] { 0f, 0f, -1f, -1f },
             //["iImageResolution"] = new [] { 512f, 512f, 0f },
         };
@@ -233,7 +195,7 @@ internal class LottieCompositionCustomVisualHandler : CompositionCustomVisualHan
         if (_uniforms is { } && _effect is { } && _paint is { })
         {
             _time += 1f / 60f;
-            _uniforms["iTime"] = _time;
+            _uniforms["Time"] = _time;
             _shader?.Dispose();
             _shader = _effect.ToShader(_uniforms, _children);
             _paint.Shader = _shader;

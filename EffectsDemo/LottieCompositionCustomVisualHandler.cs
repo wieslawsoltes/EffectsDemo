@@ -111,29 +111,71 @@ internal class LottieCompositionCustomVisualHandler : CompositionCustomVisualHan
                   uniform float3 iImageResolution; // iImage1 resolution (pixels)
                   uniform shader iImage1;          // An input image.
                   
-                  // Source: @kamoshika_vrc https://twitter.com/kamoshika_vrc/status/1495081980278751234
+                  // Star Nest by Pablo Roman Andrioli
                   
-                  const float PI2 = 6.28318530718;
-                  float F(vec2 c){
-                    return fract(sin(dot(c, vec2(12.9898, 78.233))) * 43758.5453);
+                  // This content is under the MIT License.
+                  
+                  const int iterations = 17;
+                  const float formuparam = 0.53;
+                  
+                  const int volsteps = 20;
+                  const float stepsize = 0.1;
+                  
+                  const float zoom  = 0.800;
+                  const float tile  = 0.850;
+                  const float speed =0.010 ;
+                  
+                  const float brightness =0.0015;
+                  const float darkmatter =0.300;
+                  const float distfading =0.730;
+                  const float saturation =0.850;
+                  
+                  
+                  half4 main( in vec2 fragCoord )
+                  {
+                  	//get coords and direction
+                  	vec2 uv=fragCoord.xy/iResolution.xy-.5;
+                  	uv.y*=iResolution.y/iResolution.x;
+                  	vec3 dir=vec3(uv*zoom,1.);
+                  	float time=iTime*speed+.25;
+                  
+                  	//mouse rotation
+                  	float a1=.5+iMouse.x/iResolution.x*2.;
+                  	float a2=.8+iMouse.y/iResolution.y*2.;
+                  	mat2 rot1=mat2(cos(a1),sin(a1),-sin(a1),cos(a1));
+                  	mat2 rot2=mat2(cos(a2),sin(a2),-sin(a2),cos(a2));
+                  	dir.xz*=rot1;
+                  	dir.xy*=rot2;
+                  	vec3 from=vec3(1.,.5,0.5);
+                  	from+=vec3(time*2.,time,-2.);
+                  	from.xz*=rot1;
+                  	from.xy*=rot2;
+                  	
+                  	//volumetric rendering
+                  	float s=0.1,fade=1.;
+                  	vec3 v=vec3(0.);
+                  	for (int r=0; r<volsteps; r++) {
+                  		vec3 p=from+s*dir*.5;
+                  		p = abs(vec3(tile)-mod(p,vec3(tile*2.))); // tiling fold
+                  		float pa,a=pa=0.;
+                  		for (int i=0; i<iterations; i++) { 
+                  			p=abs(p)/dot(p,p)-formuparam; // the magic formula
+                  			a+=abs(length(p)-pa); // absolute sum of average change
+                  			pa=length(p);
+                  		}
+                  		float dm=max(0.,darkmatter-a*a*.001); //dark matter
+                  		a*=a*a; // add contrast
+                  		if (r>6) fade*=1.-dm; // dark matter, don't render near
+                  		//v+=vec3(dm,dm*.5,0.);
+                  		v+=fade;
+                  		v+=vec3(s,s*s,s*s*s*s)*a*brightness*fade; // coloring based on distance
+                  		fade*=distfading; // distance fading
+                  		s+=stepsize;
+                  	}
+                  	v=mix(vec3(length(v)),v,saturation); //color adjust
+                  	return vec4(v*.01,1.);	
+                  	
                   }
-                  
-                  half4 main(float2 FC) {
-                    vec4 o;
-                    float t = iTime;
-                    vec2 r = iResolution.xy * vec2(1, -1);
-                    vec3 R=normalize(vec3((FC.xy*2.-r)/r.y,1));
-                    for(float i=0; i<100; ++i) {
-                      float I=floor(t/.1)+i;
-                      float d=(I*.1-t)/R.z;
-                      vec2 p=d*R.xy+vec2(sin(t+F(I.xx)*PI2)*.3+F(I.xx*.9),t+F(I.xx*.8));
-                      if (F(I/100+ceil(p))<.2) {
-                        o+=smoothstep(.1,0.,length(fract(p)-.5))*exp(-d*d*.04);
-                      }
-                    }
-                    return o;
-                  }
-                  
                   """;
 
         _time = 0f;

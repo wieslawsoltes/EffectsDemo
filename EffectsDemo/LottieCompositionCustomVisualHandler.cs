@@ -105,76 +105,109 @@ internal class LottieCompositionCustomVisualHandler : CompositionCustomVisualHan
         using var imageShader = image.ToShader();
 
         var src = """
-                  uniform float3 iResolution;      // Viewport resolution (pixels)
-                  uniform float  iTime;            // Shader playback time (s)
-                  uniform float4 iMouse;           // Mouse drag pos=.xy Click pos=.zw (pixels)
-                  uniform float3 iImageResolution; // iImage1 resolution (pixels)
-                  uniform shader iImage1;          // An input image.
+                  // Created by inigo quilez - iq/2013
+                  // License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
                   
-                  // Star Nest by Pablo Roman Andrioli
+                  // See here for a tutorial on how to make this:
+                  //
+                  // http://www.iquilezles.org/www/articles/warp/warp.htm
                   
-                  // This content is under the MIT License.
+                  //====================================================================
                   
-                  const int iterations = 17;
-                  const float formuparam = 0.53;
+                  /* 
                   
-                  const int volsteps = 20;
-                  const float stepsize = 0.1;
+                  SKSL PORT by kekekeks
                   
-                  const float zoom  = 0.800;
-                  const float tile  = 0.850;
-                  const float speed =0.010 ;
+                  SKSL doesn't seem to support out/inout variables for anything but main
+                  So I've made `func` to return float4 and encoded the original returnn value as the first element of the vector
                   
-                  const float brightness =0.0015;
-                  const float darkmatter =0.300;
-                  const float distfading =0.730;
-                  const float saturation =0.850;
+                  */
                   
+                  uniform float iTime;
+                  uniform float3 iResolution;
                   
-                  half4 main( in vec2 fragCoord )
+                  const float2x2 m = float2x2( 0.80,  0.60, -0.60,  0.80 );
+                  
+                  float noise( in float2 p )
                   {
-                  	//get coords and direction
-                  	vec2 uv=fragCoord.xy/iResolution.xy-.5;
-                  	uv.y*=iResolution.y/iResolution.x;
-                  	vec3 dir=vec3(uv*zoom,1.);
-                  	float time=iTime*speed+.25;
+                      return sin(p.x)*sin(p.y);
+                  }
                   
-                  	//mouse rotation
-                  	float a1=.5+iMouse.x/iResolution.x*2.;
-                  	float a2=.8+iMouse.y/iResolution.y*2.;
-                  	mat2 rot1=mat2(cos(a1),sin(a1),-sin(a1),cos(a1));
-                  	mat2 rot2=mat2(cos(a2),sin(a2),-sin(a2),cos(a2));
-                  	dir.xz*=rot1;
-                  	dir.xy*=rot2;
-                  	vec3 from=vec3(1.,.5,0.5);
-                  	from+=vec3(time*2.,time,-2.);
-                  	from.xz*=rot1;
-                  	from.xy*=rot2;
-                  	
-                  	//volumetric rendering
-                  	float s=0.1,fade=1.;
-                  	vec3 v=vec3(0.);
-                  	for (int r=0; r<volsteps; r++) {
-                  		vec3 p=from+s*dir*.5;
-                  		p = abs(vec3(tile)-mod(p,vec3(tile*2.))); // tiling fold
-                  		float pa,a=pa=0.;
-                  		for (int i=0; i<iterations; i++) { 
-                  			p=abs(p)/dot(p,p)-formuparam; // the magic formula
-                  			a+=abs(length(p)-pa); // absolute sum of average change
-                  			pa=length(p);
-                  		}
-                  		float dm=max(0.,darkmatter-a*a*.001); //dark matter
-                  		a*=a*a; // add contrast
-                  		if (r>6) fade*=1.-dm; // dark matter, don't render near
-                  		//v+=vec3(dm,dm*.5,0.);
-                  		v+=fade;
-                  		v+=vec3(s,s*s,s*s*s*s)*a*brightness*fade; // coloring based on distance
-                  		fade*=distfading; // distance fading
-                  		s+=stepsize;
-                  	}
-                  	v=mix(vec3(length(v)),v,saturation); //color adjust
-                  	return vec4(v*.01,1.);	
-                  	
+                  float fbm4( float2 p )
+                  {
+                      float f = 0.0;
+                      f += 0.5000*noise( p ); p = m*p*2.02;
+                      f += 0.2500*noise( p ); p = m*p*2.03;
+                      f += 0.1250*noise( p ); p = m*p*2.01;
+                      f += 0.0625*noise( p );
+                      return f/0.9375;
+                  }
+                  
+                  float fbm6( float2 p )
+                  {
+                      float f = 0.0;
+                      f += 0.500000*(0.5+0.5*noise( p )); p = m*p*2.02;
+                      f += 0.250000*(0.5+0.5*noise( p )); p = m*p*2.03;
+                      f += 0.125000*(0.5+0.5*noise( p )); p = m*p*2.01;
+                      f += 0.062500*(0.5+0.5*noise( p )); p = m*p*2.04;
+                      f += 0.031250*(0.5+0.5*noise( p )); p = m*p*2.01;
+                      f += 0.015625*(0.5+0.5*noise( p ));
+                      return f/0.96875;
+                  }
+                  
+                  float2 fbm4_2( float2 p )
+                  {
+                      return float2(fbm4(p), fbm4(p+float2(7.8)));
+                  }
+                  
+                  float2 fbm6_2( float2 p )
+                  {
+                      return float2(fbm6(p+float2(16.8)), fbm6(p+float2(11.5)));
+                  }
+                  
+                  //====================================================================
+                  
+                  float4 func( float2 q)
+                  {
+                      q += 0.03*sin( float2(0.27,0.23)*iTime + length(q)*float2(4.1,4.3));
+                      float2 o = fbm4_2( 0.9*q );
+                      o += 0.04*sin( float2(0.12,0.14)*iTime + length(o));
+                      float2 n = fbm6_2( 3.0*o );
+                      float f = 0.5 + 0.5*fbm4( 1.8*q + 6.0*n );
+                      float rv = mix( f, f*f*f*3.5, f*abs(n.x) );
+                      return float4(rv, o.y, n.x, n.y );
+                  }
+                  
+                  
+                  
+                  half4 main(float2 fragCoord) 
+                  {
+                      //float2 p = sk_TransformedCoords2D[0]
+                      float2 p = (2.0*fragCoord-iResolution.xy)/iResolution.y;
+                      float e = 2.0/iResolution.y;
+                  
+                      float4 on = func(p);
+                      float f = on.x;
+                      float3 col = float3(0.0);
+                      col = mix( float3(0.2,0.1,0.4), float3(0.3,0.05,0.05), f );
+                      col = mix( col, float3(0.9,0.9,0.9), dot(on.zw,on.zw) );
+                      col = mix( col, float3(0.4,0.3,0.3), 0.2 + 0.5*on.y*on.y );
+                      col = mix( col, float3(0.0,0.2,0.4), 0.5*smoothstep(1.2,1.3,abs(on.z)+abs(on.w)) );
+                      col = clamp( col*f*2.0, 0.0, 1.0 );
+                  
+                  
+                      float3 nor = normalize( float3( func(p+float2(e,0.0)).x-f,
+                      2.0*e,
+                      func(p+float2(0.0,e)).x-f ));
+                  
+                      float3 lig = normalize( float3( 0.9, 0.2, -0.4 ) );
+                      float dif = clamp( 0.3+0.7*dot( nor, lig ), 0.0, 1.0 );
+                      float3 lin = float3(0.70,0.90,0.95)*(nor.y*0.5+0.5) + float3(0.15,0.10,0.05)*dif;
+                      col *= 1.2*lin;
+                      col = 1.0 - col;
+                      col = 1.1*col*col;
+                  
+                      return half4(float4( col, 1.));
                   }
                   """;
 
@@ -185,10 +218,11 @@ internal class LottieCompositionCustomVisualHandler : CompositionCustomVisualHan
         {
             ["iResolution"] = new [] { 512f, 512f, 0f },
             ["iTime"] = _time,
-            ["iMouse"] = new [] { 0f, 0f, -1f, -1f },
-            ["iImageResolution"] = new [] { 512f, 512f, 0f },
+            //["iMouse"] = new [] { 0f, 0f, -1f, -1f },
+            //["iImageResolution"] = new [] { 512f, 512f, 0f },
         };
-        _children = new SKRuntimeEffectChildren(_effect) { ["iImage1"] = imageShader };
+        //_children = new SKRuntimeEffectChildren(_effect) { ["iImage1"] = imageShader };
+        _children = new SKRuntimeEffectChildren(_effect);
 
         _shader = _effect.ToShader(_uniforms, _children);
         _paint = new SKPaint { Shader = _shader };

@@ -105,60 +105,27 @@ internal class LottieCompositionCustomVisualHandler : CompositionCustomVisualHan
         using var imageShader = image.ToShader();
 
         var src = """
-                  uniform float Time;
-                  uniform float3 Resolution;
+                  uniform float3 iResolution;      // Viewport resolution (pixels)
+                  uniform float  iTime;            // Shader playback time (s)
+                  uniform float4 iMouse;           // Mouse drag pos=.xy Click pos=.zw (pixels)
+                  uniform float3 iImageResolution; // iImage1 resolution (pixels)
+                  uniform shader iImage1;          // An input image.
                   
-                  float random (vec2 uv) {
-                      return fract(sin(dot(uv.xy, vec2(12.9898,78.233))) * 43758.5453123);
+                  // Source: @notargs https://twitter.com/notargs/status/1250468645030858753
+                  float f(vec3 p) {
+                      p.z -= iTime * 10.;
+                      float a = p.z * .1;
+                      p.xy *= mat2(cos(a), sin(a), -sin(a), cos(a));
+                      return .1 - length(cos(p.xy) + sin(p.yz));
                   }
                   
-                  // Based on Morgan McGuire @morgan3d
-                  // https://www.shadertoy.com/view/4dS3Wd
-                  
-                  float noise (vec2 uv) {
-                      vec2 i = floor(uv);
-                      // Four corners in 2D of a tile
-                      vec2 f = fract(uv);
-                      float a = random(i);
-                      float b = random(i + vec2(1.0, 0.0));
-                      float c = random(i + vec2(0.0, 1.0));
-                      float d = random(i + vec2(1.0, 1.0));
-                      vec2 u = (f * f * (3.0 - 2.0 * f));
-                      return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) +
-                          (d - b) * u.x * u.y;
-                  }
-                  
-                  float fbm (vec2 uv) {
-                      float v = 0.0;
-                      float a = 0.5;
-                      vec2 shift = vec2(100.0);
-                      // Rotate to reduce axial bias
-                      float2x2 rot = float2x2(cos(0.5), sin(0.5), -sin(0.5), cos(0.50));
-                      for (int i = 0; i < 5; ++i) {
-                          v += a * noise(uv);
-                          uv = rot * uv * 2.0 + shift;
-                          a *= 0.5;
+                  half4 main(vec2 fragcoord) { 
+                      vec3 d = .5 - fragcoord.xy1 / iResolution.y;
+                      vec3 p=vec3(0);
+                      for (int i = 0; i < 32; i++) {
+                        p += f(p) * d;
                       }
-                      return v;
-                  }
-                  
-                  half4 main(vec2 fragCoord) {
-                      float2 uv = fragCoord.xy/Resolution.xy*3.;
-                      // uv += uv * abs(sin(Time*0.1)*3.0);
-                      vec3 color = vec3(0.0);vec2 q = vec2(0.);
-                      q.x = fbm( uv + 0.00*Time);
-                      q.y = fbm( uv + vec2(1.0));vec2 r = vec2(0.);
-                      r.x = fbm( uv + 1.0*q + vec2(1.7,9.2)+ 0.15*Time );
-                      r.y = fbm( uv + 1.0*q + vec2(8.3,2.8)+ 0.126*Time);
-                      float f = fbm(uv+r);
-                      
-                      color = mix(vec3(0.101961,0.619608,0.666667), vec3(0.666667,0.666667,0.498039),
-                          clamp((f*f)*4.0,0.0,1.0));
-                      
-                      color = mix(color,
-                      vec3(0,0,0.164706), clamp(length(q),0.0,1.0));
-                      color = mix(color,vec3(0.666667,1,1),clamp(length(r.x),0.0,1.0));
-                      return half4((f*f*f+.6*f*f+.5*f)*color,1.);
+                      return ((sin(p) + vec3(2, 5, 12)) / length(p)).xyz1;
                   }
                   """;
 
@@ -167,12 +134,12 @@ internal class LottieCompositionCustomVisualHandler : CompositionCustomVisualHan
         _effect = SKRuntimeEffect.CreateShader(src, out var errorText);
         _uniforms = new SKRuntimeEffectUniforms(_effect)
         {
-            ["Resolution"] = new [] { 512f, 512f, 0f },
-            ["Time"] = _time,
-            //["iMouse"] = new [] { 0f, 0f, -1f, -1f },
-            //["iImageResolution"] = new [] { 512f, 512f, 0f },
+            ["iResolution"] = new [] { 512f, 512f, 0f },
+            ["iTime"] = _time,
+            ["iMouse"] = new [] { 0f, 0f, -1f, -1f },
+            ["iImageResolution"] = new [] { 512f, 512f, 0f },
         };
-        //_children = new SKRuntimeEffectChildren(_effect) { ["iImage1"] = imageShader };
+        _children = new SKRuntimeEffectChildren(_effect) { ["iImage1"] = imageShader };
         _children = new SKRuntimeEffectChildren(_effect);
 
         _shader = _effect.ToShader(_uniforms, _children);
@@ -184,7 +151,7 @@ internal class LottieCompositionCustomVisualHandler : CompositionCustomVisualHan
         if (_uniforms is { } && _effect is { } && _paint is { })
         {
             _time += 1f / 60f;
-            _uniforms["Time"] = _time;
+            _uniforms["iTime"] = _time;
             _shader?.Dispose();
             _shader = _effect.ToShader(_uniforms, _children);
             _paint.Shader = _shader;

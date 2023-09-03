@@ -108,68 +108,57 @@ internal class LottieCompositionCustomVisualHandler : CompositionCustomVisualHan
                   uniform float Time;
                   uniform float3 Resolution;
                   
-                  float noise(vec3 p) //Thx to Las^Mercury
-                  {
-                      vec3 i = floor(p);
-                      vec4 a = dot(i, vec3(1., 57., 21.)) + vec4(0., 57., 21., 78.);
-                      vec3 f = cos((p-i)*acos(-1.))*(-.5)+.5;
-                      a = mix(sin(cos(a)*a),sin(cos(1.+a)*(1.+a)), f.x);
-                      a.xy = mix(a.xz, a.yw, f.y);
-                      return mix(a.x, a.y, f.z);
+                  float random (vec2 uv) {
+                      return fract(sin(dot(uv.xy, vec2(12.9898,78.233))) * 43758.5453123);
                   }
                   
-                  float sphere(vec3 p, vec4 spr)
-                  {
-                      return length(spr.xyz-p) - spr.w;
+                  // Based on Morgan McGuire @morgan3d
+                  // https://www.shadertoy.com/view/4dS3Wd
+                  
+                  float noise (vec2 uv) {
+                      vec2 i = floor(uv);
+                      // Four corners in 2D of a tile
+                      vec2 f = fract(uv);
+                      float a = random(i);
+                      float b = random(i + vec2(1.0, 0.0));
+                      float c = random(i + vec2(0.0, 1.0));
+                      float d = random(i + vec2(1.0, 1.0));
+                      vec2 u = (f * f * (3.0 - 2.0 * f));
+                      return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) +
+                          (d - b) * u.x * u.y;
                   }
                   
-                  float flame(vec3 p)
-                  {
-                      float d = sphere(p*vec3(1.,.3,1.), vec4(.0,-1.,.0,1.));
-                      return d + (noise(p+vec3(.0,Time*0.1,.0)) + noise(p*3.)*.5)*.25*(p.y) ;
-                  }
-                  
-                  float scene(vec3 p)
-                  {
-                      return min(100.-length(p) , abs(flame(p)) );
-                  }
-                  
-                  vec4 raymarch(vec3 org, vec3 dir)
-                  {
-                      float d = 0.0, glow = 0.0, eps = 0.02;
-                      vec3  p = org;
-                      bool glowed = false;
-                      
-                      for(int i=0; i<64; i++)
-                      {
-                          d = scene(p) + eps;
-                          p += d * dir;
-                          if( d>eps )
-                          {
-                              if(flame(p) < .0)
-                                  glowed=true;
-                              if(glowed)
-                                  glow = float(i)/64.;
-                          }
+                  float fbm (vec2 uv) {
+                      float v = 0.0;
+                      float a = 0.5;
+                      vec2 shift = vec2(100.0);
+                      // Rotate to reduce axial bias
+                      float2x2 rot = float2x2(cos(0.5), sin(0.5), -sin(0.5), cos(0.50));
+                      for (int i = 0; i < 5; ++i) {
+                          v += a * noise(uv);
+                          uv = rot * uv * 2.0 + shift;
+                          a *= 0.5;
                       }
-                      return vec4(p,glow);
+                      return v;
                   }
                   
-                  half4 main(vec2 fragCoord)
-                  {
-                      vec2 uv = 2.0 * fragCoord.xy / Resolution.xy;
-                      uv.x *= Resolution.x/Resolution.y;
+                  half4 main(vec2 fragCoord) {
+                      float2 uv = fragCoord.xy/Resolution.xy*3.;
+                      // uv += uv * abs(sin(Time*0.1)*3.0);
+                      vec3 color = vec3(0.0);vec2 q = vec2(0.);
+                      q.x = fbm( uv + 0.00*Time);
+                      q.y = fbm( uv + vec2(1.0));vec2 r = vec2(0.);
+                      r.x = fbm( uv + 1.0*q + vec2(1.7,9.2)+ 0.15*Time );
+                      r.y = fbm( uv + 1.0*q + vec2(8.3,2.8)+ 0.126*Time);
+                      float f = fbm(uv+r);
                       
-                      vec3 org = vec3(0., -4.5, 4.);
-                      vec3 dir = normalize(vec3(uv.x*1.6, -uv.y, -1.5));
+                      color = mix(vec3(0.101961,0.619608,0.666667), vec3(0.666667,0.666667,0.498039),
+                          clamp((f*f)*4.0,0.0,1.0));
                       
-                      vec4 p = raymarch(org, dir);
-                      float glow = p.w;
-                      
-                      half4 col = mix(half4(1.,.5,.1,1.), half4(0.1,.5,1.,1.), p.y*.02+.4);
-                      
-                      return half4(mix(half4(0.), col, pow(glow*2.,4.)));
-                  
+                      color = mix(color,
+                      vec3(0,0,0.164706), clamp(length(q),0.0,1.0));
+                      color = mix(color,vec3(0.666667,1,1),clamp(length(r.x),0.0,1.0));
+                      return half4((f*f*f+.6*f*f+.5*f)*color,1.);
                   }
                   """;
 

@@ -3,19 +3,18 @@ using System.Numerics;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Rendering.Composition;
 
 namespace EffectsDemo;
 
-public partial class Demo : UserControl
+public partial class DrawControl : UserControl
 {
     public static readonly StyledProperty<Stretch> StretchProperty =
-        AvaloniaProperty.Register<Demo, Stretch>(nameof(Stretch), Stretch.Uniform);
+        AvaloniaProperty.Register<DrawControl, Stretch>(nameof(Stretch), Stretch.Uniform);
 
     public static readonly StyledProperty<StretchDirection> StretchDirectionProperty =
-        AvaloniaProperty.Register<Demo, StretchDirection>(
+        AvaloniaProperty.Register<DrawControl, StretchDirection>(
             nameof(StretchDirection),
             StretchDirection.Both);
 
@@ -33,7 +32,7 @@ public partial class Demo : UserControl
     
     private CompositionCustomVisual? _customVisual;
 
-    public Demo()
+    public DrawControl()
     {
         InitializeComponent();
     }
@@ -49,15 +48,15 @@ public partial class Demo : UserControl
             return;
         }
         
-        _customVisual = compositor.CreateCustomVisual(new LottieCompositionCustomVisualHandler());
+        _customVisual = compositor.CreateCustomVisual(new DrawCompositionCustomVisualHandler());
         ElementComposition.SetElementChildVisual(this, _customVisual);
 
         LayoutUpdated += OnLayoutUpdated;
 
         _customVisual.Size = new Vector2((float)Bounds.Size.Width, (float)Bounds.Size.Height);
         _customVisual.SendHandlerMessage(
-            new LottiePayload(
-                LottieCommand.Update,
+            new DrawPayload(
+                HandlerCommand.Update,
                 null, 
                 Bounds.Size,
                 Stretch, 
@@ -85,8 +84,8 @@ public partial class Demo : UserControl
 
         _customVisual.Size = new Vector2((float)Bounds.Size.Width, (float)Bounds.Size.Height);
         _customVisual.SendHandlerMessage(
-            new LottiePayload(
-                LottieCommand.Update, 
+            new DrawPayload(
+                HandlerCommand.Update, 
                 null, 
                 Bounds.Size,
                 Stretch, 
@@ -96,8 +95,8 @@ public partial class Demo : UserControl
     private void Start()
     {
         _customVisual?.SendHandlerMessage(
-            new LottiePayload(
-                LottieCommand.Start,
+            new DrawPayload(
+                HandlerCommand.Start,
                 new object(), // TODO:
                 Bounds.Size,
                 Stretch, 
@@ -106,11 +105,11 @@ public partial class Demo : UserControl
 
     private void Stop()
     {
-        _customVisual?.SendHandlerMessage(new LottiePayload(LottieCommand.Stop));
+        _customVisual?.SendHandlerMessage(new DrawPayload(HandlerCommand.Stop));
     }
 
     private void DisposeImpl()
     {
-        _customVisual?.SendHandlerMessage(new LottiePayload(LottieCommand.Dispose));
+        _customVisual?.SendHandlerMessage(new DrawPayload(HandlerCommand.Dispose));
     }
 }

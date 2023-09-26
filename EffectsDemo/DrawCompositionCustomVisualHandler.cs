@@ -10,7 +10,7 @@ using SkiaSharp;
 
 namespace EffectsDemo;
 
-internal class LottieCompositionCustomVisualHandler : CompositionCustomVisualHandler
+internal class DrawCompositionCustomVisualHandler : CompositionCustomVisualHandler
 {
     private bool _running;
     private Stretch? _stretch;
@@ -26,7 +26,7 @@ internal class LottieCompositionCustomVisualHandler : CompositionCustomVisualHan
 
     public override void OnMessage(object message)
     {
-        if (message is not LottiePayload msg)
+        if (message is not DrawPayload msg)
         {
             return;
         }
@@ -35,7 +35,7 @@ internal class LottieCompositionCustomVisualHandler : CompositionCustomVisualHan
         {
             case
             {
-                LottieCommand: LottieCommand.Start,
+                HandlerCommand: HandlerCommand.Start,
                 Animation: { } an,
                 Size: { } size,
                 Stretch: { } st,
@@ -51,7 +51,7 @@ internal class LottieCompositionCustomVisualHandler : CompositionCustomVisualHan
             }
             case
             {
-                LottieCommand: LottieCommand.Update,
+                HandlerCommand: HandlerCommand.Update,
                 Size: { } size,
                 Stretch: { } st,
                 StretchDirection: { } sd
@@ -65,7 +65,7 @@ internal class LottieCompositionCustomVisualHandler : CompositionCustomVisualHan
             }
             case
             {
-                LottieCommand: LottieCommand.Stop
+                HandlerCommand: HandlerCommand.Stop
             }:
             {
                 _running = false;
@@ -73,7 +73,7 @@ internal class LottieCompositionCustomVisualHandler : CompositionCustomVisualHan
             }
             case
             {
-                LottieCommand: LottieCommand.Dispose
+                HandlerCommand: HandlerCommand.Dispose
             }:
             {
                 DisposeImpl();

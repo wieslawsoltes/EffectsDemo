@@ -9,5 +9,5 @@
         Width="512" 
         Height="512"
         Title="EffectsDemo">
-    <effectsDemo:Demo/>
+    <effectsDemo:DrawControl/>
 </Window>

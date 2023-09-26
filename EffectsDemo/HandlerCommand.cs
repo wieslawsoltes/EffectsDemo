@@ -1,6 +1,6 @@
 namespace EffectsDemo;
 
-internal enum LottieCommand
+internal enum HandlerCommand
 {
     Start,
     Stop,

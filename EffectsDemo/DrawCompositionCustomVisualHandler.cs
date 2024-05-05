@@ -131,7 +131,7 @@ internal class DrawCompositionCustomVisualHandler : CompositionCustomVisualHandl
 
         _time = 0f;
         
-        _effect = SKRuntimeEffect.CreateShader(src, out var errorText);
+        _effect = SKRuntimeEffect.Create(src, out var errorText);
         _uniforms = new SKRuntimeEffectUniforms(_effect)
         {
             ["iResolution"] = new [] { 512f, 512f, 0f },
@@ -142,7 +142,7 @@ internal class DrawCompositionCustomVisualHandler : CompositionCustomVisualHandl
         _children = new SKRuntimeEffectChildren(_effect) { ["iImage1"] = imageShader };
         _children = new SKRuntimeEffectChildren(_effect);
 
-        _shader = _effect.ToShader(_uniforms, _children);
+        _shader = _effect.ToShader(true, _uniforms, _children);
         _paint = new SKPaint { Shader = _shader };
     }
 
@@ -153,7 +153,7 @@ internal class DrawCompositionCustomVisualHandler : CompositionCustomVisualHandl
             _time += 1f / 60f;
             _uniforms["iTime"] = _time;
             _shader?.Dispose();
-            _shader = _effect.ToShader(_uniforms, _children);
+            _shader = _effect.ToShader(true, _uniforms, _children);
             _paint.Shader = _shader;
         }
     }

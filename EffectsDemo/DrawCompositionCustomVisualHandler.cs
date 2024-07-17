@@ -313,7 +313,7 @@ uniform vec4      iDate;                 // (year, month, day, time in seconds)
 uniform float     iSampleRate;           // sound sample rate (i.e., 44100)
          */
         
-        _children = new SKRuntimeEffectChildren(_effect) { ["iImage1"] = imageShader };
+        //_children = new SKRuntimeEffectChildren(_effect) { ["iImage1"] = imageShader };
         _children = new SKRuntimeEffectChildren(_effect);
 
         _shader = _effect.ToShader(_uniforms, _children);

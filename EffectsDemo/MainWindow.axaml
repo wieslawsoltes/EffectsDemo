@@ -9,5 +9,5 @@
         Width="512" 
         Height="512"
         Title="EffectsDemo">
-    <effectsDemo:DrawControl/>
+    <effectsDemo:ShaderAnimationControl ShaderUri="avares://EffectsDemo/Assets/shader.txt" ShaderWidth="500" ShaderHeight="500"/>
 </Window>

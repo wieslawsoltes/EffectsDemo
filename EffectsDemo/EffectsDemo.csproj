@@ -7,7 +7,7 @@
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-    <AvaloniaVersion>11.1.0-rc2</AvaloniaVersion>
+    <AvaloniaVersion>11.3.3</AvaloniaVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,9 +19,9 @@
     <PackageReference Include="Avalonia.Desktop" Version="$(AvaloniaVersion)"/>
     <PackageReference Include="Avalonia.Themes.Fluent" Version="$(AvaloniaVersion)"/>
     <PackageReference Include="Avalonia.Fonts.Inter" Version="$(AvaloniaVersion)"/>
-    <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
     <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="$(AvaloniaVersion)"/>
-    <PackageReference Include="SkiaSharp" Version="3.0.0-preview.4.1" />
+    <PackageReference Include="SkiaSharp" Version="3.119.0" />
+    <PackageReference Include="CompositionAnimatedControl" Version="11.3.0.1" />
   </ItemGroup>
 
 </Project>

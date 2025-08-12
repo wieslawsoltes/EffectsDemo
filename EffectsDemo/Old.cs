@@ -10,7 +10,7 @@ using SkiaSharp;
 
 namespace EffectsDemo;
 
-internal class DrawCompositionCustomVisualHandler : CompositionCustomVisualHandler
+internal class DrawCompositionCustomVisualHandler
 {
     private bool _running;
     private Stretch? _stretch;
@@ -23,81 +23,6 @@ internal class DrawCompositionCustomVisualHandler : CompositionCustomVisualHandl
     private SKRuntimeEffect? _effect;
     private SKRuntimeEffectChildren? _children;
     private float _time;
-
-    public override void OnMessage(object message)
-    {
-        if (message is not DrawPayload msg)
-        {
-            return;
-        }
-
-        switch (msg)
-        {
-            case
-            {
-                HandlerCommand: HandlerCommand.Start,
-                Animation: { } an,
-                Size: { } size,
-                Stretch: { } st,
-                StretchDirection: { } sd
-            }:
-            {
-                _running = true;
-                _size = size;
-                _stretch = st;
-                _stretchDirection = sd;
-                RegisterForNextAnimationFrameUpdate();
-                break;
-            }
-            case
-            {
-                HandlerCommand: HandlerCommand.Update,
-                Size: { } size,
-                Stretch: { } st,
-                StretchDirection: { } sd
-            }:
-            {
-                _size = size;
-                _stretch = st;
-                _stretchDirection = sd;
-                RegisterForNextAnimationFrameUpdate();
-                break;
-            }
-            case
-            {
-                HandlerCommand: HandlerCommand.Stop
-            }:
-            {
-                _running = false;
-                break;
-            }
-            case
-            {
-                HandlerCommand: HandlerCommand.Dispose
-            }:
-            {
-                DisposeImpl();
-                break;
-            }
-        }
-    }
-
-    public override void OnAnimationFrameUpdate()
-    {
-        if (!_running)
-            return;
-
-        Invalidate();
-        RegisterForNextAnimationFrameUpdate();
-    }
-
-    private void DisposeImpl()
-    {
-        lock (_sync)
-        {
-            // TODO:
-        }
-    }
 
     private void CreatePaint()
     {
@@ -300,17 +225,17 @@ internal class DrawCompositionCustomVisualHandler : CompositionCustomVisualHandl
         };
         
         /*
-         uniform vec3      iResolution;           // viewport resolution (in pixels)
-uniform float     iTime;                 // shader playback time (in seconds)
-uniform float     iTimeDelta;            // render time (in seconds)
-uniform float     iFrameRate;            // shader frame rate
-uniform int       iFrame;                // shader playback frame
-uniform float     iChannelTime[4];       // channel playback time (in seconds)
-uniform vec3      iChannelResolution[4]; // channel resolution (in pixels)
-uniform vec4      iMouse;                // mouse pixel coords. xy: current (if MLB down), zw: click
-//uniform samplerXX iChannel0..3;          // input channel. XX = 2D/Cube
-uniform vec4      iDate;                 // (year, month, day, time in seconds)
-uniform float     iSampleRate;           // sound sample rate (i.e., 44100)
+        uniform vec3      iResolution;           // viewport resolution (in pixels)
+        uniform float     iTime;                 // shader playback time (in seconds)
+        uniform float     iTimeDelta;            // render time (in seconds)
+        uniform float     iFrameRate;            // shader frame rate
+        uniform int       iFrame;                // shader playback frame
+        uniform float     iChannelTime[4];       // channel playback time (in seconds)
+        uniform vec3      iChannelResolution[4]; // channel resolution (in pixels)
+        uniform vec4      iMouse;                // mouse pixel coords. xy: current (if MLB down), zw: click
+        //uniform samplerXX iChannel0..3;          // input channel. XX = 2D/Cube
+        uniform vec4      iDate;                 // (year, month, day, time in seconds)
+        uniform float     iSampleRate;           // sound sample rate (i.e., 44100)
          */
         
         //_children = new SKRuntimeEffectChildren(_effect) { ["iImage1"] = imageShader };
@@ -329,84 +254,6 @@ uniform float     iSampleRate;           // sound sample rate (i.e., 44100)
             _shader?.Dispose();
             _shader = _effect.ToShader(_uniforms, _children);
             _paint.Shader = _shader;
-        }
-    }
-    
-    private void Draw(SKCanvas canvas)
-    {
-        canvas.Save();
-
-        if (_paint is null)
-        {
-            CreatePaint();
-        }
-        else
-        {
-            UpdatePaint();
-        }
-        
-        // TODO:
-        canvas.DrawRect(0, 0, 512, 512, new SKPaint { Color = SKColors.Black });
-        canvas.DrawRect(0, 0, 512, 512, _paint);
-
-        canvas.Restore();
-    }
-
-    public override void OnRender(ImmediateDrawingContext context)
-    {
-        lock (_sync)
-        {
-            
-            if (_stretch is not { } st 
-                || _stretchDirection is not { } sd)
-            {
-                return;
-            }
-
-            var leaseFeature = context.TryGetFeature<ISkiaSharpApiLeaseFeature>();
-            if (leaseFeature is null)
-            {
-                return;
-            }
-
-            var rb = GetRenderBounds();
-
-            var size = _size ?? rb.Size;
-
-            var viewPort = new Rect(rb.Size);
-            var sourceSize = new Size(size.Width, size.Height);
-            if (sourceSize.Width <= 0 || sourceSize.Height <= 0)
-            {
-                return;
-            }
-
-            var scale = st.CalculateScaling(rb.Size, sourceSize, sd);
-            var scaledSize = sourceSize * scale;
-            var destRect = viewPort
-                .CenterRect(new Rect(scaledSize))
-                .Intersect(viewPort);
-            var sourceRect = new Rect(sourceSize)
-                .CenterRect(new Rect(destRect.Size / scale));
-
-            var bounds = SKRect.Create(new SKPoint(), new SKSize((float)size.Width, (float)size.Height));
-            var scaleMatrix = Matrix.CreateScale(
-                destRect.Width / sourceRect.Width,
-                destRect.Height / sourceRect.Height);
-            var translateMatrix = Matrix.CreateTranslation(
-                -sourceRect.X + destRect.X - bounds.Top,
-                -sourceRect.Y + destRect.Y - bounds.Left);
-
-            using (context.PushClip(destRect))
-            using (context.PushPostTransform(translateMatrix * scaleMatrix))
-            {
-                using var lease = leaseFeature.Lease();
-                var canvas = lease?.SkCanvas;
-                if (canvas is null)
-                {
-                    return;
-                }
-                Draw(canvas);
-            }
         }
     }
 }

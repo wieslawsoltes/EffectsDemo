@@ -115,7 +115,7 @@ public class ShaderAnimatedControl : CompositionAnimatedControl
         Render(canvas, destRect, effectiveElapsed);
     }
 
-    protected virtual void Render(SKCanvas canvas, Rect destRect, TimeSpan effectiveElapsed)
+    private void Render(SKCanvas canvas, Rect destRect, TimeSpan effectiveElapsed)
     {
         if (_effect is null)
         {

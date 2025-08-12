@@ -11,5 +11,6 @@
     <ShaderAnimatedControl ShaderUri="avares://EffectsDemo/Assets/shader.txt" 
                            ShaderWidth="500" 
                            ShaderHeight="500"
-                           IsShaderFillCanvas="True" />
+                           IsShaderFillCanvas="True"
+                           Draw="ShaderAnimatedControl_OnDraw"/>
 </Window>

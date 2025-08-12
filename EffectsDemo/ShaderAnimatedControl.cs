@@ -21,6 +21,16 @@ public class ShaderAnimatedControl : CompositionAnimatedControl
 
     public static readonly StyledProperty<bool> IsShaderFillCanvasProperty =
         AvaloniaProperty.Register<ShaderAnimatedControl, bool>(nameof(IsShaderFillCanvas));
+    
+    private Uri? _shaderUri;
+    private double _shaderWidth;
+    private double _shaderHeight;
+    private bool _isShaderFillCanvas;
+    private Rect _bounds;
+    private SKRuntimeEffect? _effect;
+    private string? _errorText;
+
+    public event EventHandler<DrawEventArgs>? Draw;
 
     public Uri? ShaderUri
     {
@@ -83,14 +93,6 @@ public class ShaderAnimatedControl : CompositionAnimatedControl
         }
     }
 
-    private Uri? _shaderUri;
-    private double _shaderWidth;
-    private double _shaderHeight;
-    private bool _isShaderFillCanvas;
-    private Rect _bounds;
-    private SKRuntimeEffect? _effect;
-    private SKRuntimeEffectUniforms? _uniforms;
-    
     protected override Size OnGetSourceSize()
     {
         // TODO: Use stretch mode to determine the size.
@@ -110,33 +112,27 @@ public class ShaderAnimatedControl : CompositionAnimatedControl
     protected override void OnRender(SKCanvas canvas, Rect destRect, TimeSpan effectiveElapsed, bool isRunning)
     {
         EnsureEffect();
-        Draw(canvas, destRect, effectiveElapsed);
+        Render(canvas, destRect, effectiveElapsed);
     }
 
-    protected virtual void Draw(SKCanvas canvas, Rect destRect, TimeSpan effectiveElapsed)
+    protected virtual void Render(SKCanvas canvas, Rect destRect, TimeSpan effectiveElapsed)
     {
         if (_effect is null)
         {
             return;
         }
 
-        var targetWidth = (float)(_isShaderFillCanvas ? destRect.Width : _shaderWidth);
-        var targetHeight = (float)(_isShaderFillCanvas ? destRect.Height : _shaderHeight);
-
-        _uniforms ??= new SKRuntimeEffectUniforms(_effect);
-        _uniforms["iTime"] = (float)effectiveElapsed.TotalSeconds;
-        _uniforms["iResolution"] = new[] { targetWidth, targetHeight, 0f };
-
-        using var paint = new SKPaint();
-        using var shader = _effect.ToShader(_uniforms);
-        paint.Shader = shader;
-
-        var rect = new SKRect(
-            (float)destRect.X, 
-            (float)destRect.Y, 
-            (float)destRect.Right, 
-            (float)destRect.Bottom);
-        canvas.DrawRect(rect, paint);
+        Draw?.Invoke(
+            this, 
+            new DrawEventArgs(
+                canvas, 
+                destRect, 
+                effectiveElapsed, 
+                _isShaderFillCanvas, 
+                _effect,
+                _shaderWidth,
+                _shaderHeight,
+                _errorText));
     }
 
     private void EnsureEffect()
@@ -153,14 +149,18 @@ public class ShaderAnimatedControl : CompositionAnimatedControl
         _effect = SKRuntimeEffect.CreateShader(shaderCode, out var errorText);
         if (_effect == null)
         {
-            // Fail silently in release; for debugging consider logging errorText.
+            _errorText = errorText;
         }
+
+        _errorText = null;
     }
 
     private void DisposeEffect()
     {
-        _uniforms?.Reset();
-        _uniforms = null;
+        // TODO:
+        // _uniforms?.Reset();
+        // _uniforms = null;
+
         _effect?.Dispose();
         _effect = null;
     }
